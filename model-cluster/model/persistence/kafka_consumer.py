@@ -1,44 +1,46 @@
 from kafka import KafkaConsumer
-from .sql_postgres import get_pg_server_connection
 import json
 import os 
 import threading
 
 KAFKA_HOST = os.getenv('KAFKA_HOST')
+vibration_data_list = []
 
-## Definir los datos que va a enviar 
-def store_rating(user_id, movie_id, rating):
-    conn = get_pg_server_connection()
-    cursor = conn.cursor()
+def consume_vibration_data():
+    global vibration_data_list
     try:
-        cursor.execute(
-            "INSERT INTO UserRatings (user_id, movie_id, rating) VALUES (%s, %s, %s) "
-            "ON CONFLICT (user_id, movie_id) DO UPDATE SET rating = EXCLUDED.rating",
-            (user_id, movie_id, rating)
-        )
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Error storing rating: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-
-def consume_votes():
-    consumer = KafkaConsumer(
-        'votes-topic',
-        bootstrap_servers=KAFKA_HOST,
-        auto_offset_reset='latest',
-        enable_auto_commit=True,
-        group_id='votes-group',
-        value_deserializer=lambda x: x.decode('utf-8')
+        # Crear consumidor de kafka
+        vibration_consumer = KafkaConsumer(
+            'vibration-topic',
+            bootstrap_servers=KAFKA_HOST,
+            auto_offset_reset='latest',
+            enable_auto_commit=True,
+            group_id='vibraciones-group',
+            value_deserializer=lambda x: x.decode('utf-8')
     )
+        print("Conectado al broker de Kafka")
 
-    for message in consumer:
-        vote = json.loads(message.value)
-        store_rating(vote["user_id"], vote["movie_id"], vote["rating"])
+        for mesage in vibration_consumer:
+            vibration_data = mesage.value
+            print(f"Datos recibidos: {vibration_data}")
+        
+            ## Verificacion de los campos esperados
+            if all(key in vibration_data for key in ['idMotor','value','axis','medicion']):
+                # Guardamos los datos en la lista
+                data_array = [
+                    vibration_data['idMotor'],
+                    vibration_data['value'],
+                    vibration_data['axis'],
+                    vibration_data['medicion']
+                ]
+
+                vibration_data_list.append(data_array)
+                print(f"Datos procesados y almacenados: {data_array}")
+
+    except Exception as e:
+        print(f"Error al conectarse o consumir datos de Kafka: {e}")
 
 def start_consumer():
-    thread = threading.Thread(target=consume_votes)
+    thread = threading.Thread(target=consume_vibration_data)
     thread.daemon = True  # Permite que el hilo se cierre al cerrar la aplicación
     thread.start()
