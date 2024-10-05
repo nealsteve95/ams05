@@ -1,0 +1,9 @@
+version: '3'
+services:
+  react-app:
+    build: .
+    ports:
+      - "3000:80"  # Exponemos el puerto 3000 de la máquina para acceder a Nginx en el puerto 80
+    environment:
+      - NODE_ENV=production
+

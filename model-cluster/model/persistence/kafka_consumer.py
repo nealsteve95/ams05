@@ -18,7 +18,7 @@ def consume_vibration_data():
             group_id='vibraciones-group',
             value_deserializer=lambda x: x.decode('utf-8')
     )
-        print("Conectado al broker de Kafka")
+        print("Conectado al broker de Kafka")   
 
         for mesage in vibration_consumer:
             vibration_data = mesage.value
