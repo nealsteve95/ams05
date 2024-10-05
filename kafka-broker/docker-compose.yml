@@ -21,3 +21,4 @@ services:
       - "9092:9092"
     depends_on:
       - zookeeper
+
